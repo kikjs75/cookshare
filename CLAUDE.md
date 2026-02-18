@@ -1,62 +1,62 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+이 파일은 이 저장소에서 작업할 때 Claude Code(claude.ai/code)에 제공하는 지침입니다.
 
-## Project Overview
+## 프로젝트 개요
 
-CookShare is a full-stack recipe sharing platform built with TypeScript. The backend is Express.js (port 4000) with SQLite, and the frontend is Next.js 14 App Router (port 3000) with Tailwind CSS and shadcn/ui components.
+CookShare는 TypeScript로 구축된 풀스택 레시피 공유 플랫폼입니다. 백엔드는 SQLite를 사용하는 Express.js(포트 4000)이며, 프론트엔드는 Tailwind CSS와 shadcn/ui 컴포넌트를 사용하는 Next.js 14 App Router(포트 3000)입니다.
 
-## Commands
+## 명령어
 
-### Backend (`/workspace/backend`)
-- `npm run dev` — Start dev server with tsx watch mode (port 4000)
-- `npm run build` — Compile TypeScript to `./dist`
-- `npm start` — Run compiled output
-- `npm run db:migrate` — Initialize/migrate SQLite database
+### 백엔드 (`/workspace/backend`)
+- `npm run dev` — tsx watch 모드로 개발 서버 시작 (포트 4000)
+- `npm run build` — TypeScript를 `./dist`로 컴파일
+- `npm start` — 컴파일된 결과물 실행
+- `npm run db:migrate` — SQLite 데이터베이스 초기화/마이그레이션
 
-### Frontend (`/workspace/frontend`)
-- `npm run dev` — Start Next.js dev server (port 3000)
-- `npm run build` — Production build
-- `npm run lint` — ESLint with Next.js rules
+### 프론트엔드 (`/workspace/frontend`)
+- `npm run dev` — Next.js 개발 서버 시작 (포트 3000)
+- `npm run build` — 프로덕션 빌드
+- `npm run lint` — Next.js 규칙 기반 ESLint 검사
 
-### First-time setup
+### 최초 설정
 ```
 cd backend && cp .env.example .env && npm install && npm run db:migrate
 cd ../frontend && cp .env.local.example .env.local && npm install
 ```
 
-## Architecture
+## 아키텍처
 
-### Backend layers
-Express app → middleware (CORS, JSON, JWT auth, Multer upload) → routes → controllers → database (better-sqlite3 with WAL mode).
+### 백엔드 레이어
+Express 앱 → 미들웨어 (CORS, JSON, JWT 인증, Multer 업로드) → 라우트 → 컨트롤러 → 데이터베이스 (WAL 모드의 better-sqlite3).
 
-- **Routes**: `src/routes/auth.ts` and `src/routes/recipes.ts` define API endpoints under `/api/auth/*` and `/api/recipes/*`
-- **Controllers**: `authController.ts` (register/login/me) and `recipeController.ts` (CRUD, likes, image upload) contain all business logic and direct DB queries
-- **Middleware**: `auth.ts` verifies JWT Bearer tokens; `upload.ts` handles Multer image uploads (5MB, JPG/PNG/WebP)
-- **Storage**: Abstract `StorageService` interface with `LocalStorageService` implementation; S3 is stubbed but not implemented. Controlled by `STORAGE_TYPE` env var
-- **Database schema**: `src/db/schema.sql` defines 8 tables: users, recipes, ingredients, steps, tags, recipe_tags, likes, comments
+- **Routes**: `src/routes/auth.ts`와 `src/routes/recipes.ts`가 `/api/auth/*` 및 `/api/recipes/*` 하위 API 엔드포인트를 정의
+- **Controllers**: `authController.ts`(회원가입/로그인/me)와 `recipeController.ts`(CRUD, 좋아요, 이미지 업로드)가 모든 비즈니스 로직과 직접 DB 쿼리를 포함
+- **Middleware**: `auth.ts`는 JWT Bearer 토큰을 검증; `upload.ts`는 Multer 이미지 업로드 처리 (5MB, JPG/PNG/WebP)
+- **Storage**: 추상화된 `StorageService` 인터페이스와 `LocalStorageService` 구현체; S3는 스텁만 존재하며 미구현. `STORAGE_TYPE` 환경변수로 제어
+- **데이터베이스 스키마**: `src/db/schema.sql`에 8개 테이블 정의: users, recipes, ingredients, steps, tags, recipe_tags, likes, comments
 
-### Frontend layers
-Next.js App Router pages → React components → AuthContext (state) → API client (`lib/api.ts` with automatic JWT injection).
+### 프론트엔드 레이어
+Next.js App Router 페이지 → React 컴포넌트 → AuthContext (상태) → API 클라이언트 (`lib/api.ts`, 자동 JWT 주입).
 
-- **Pages**: Home (`/`), login/register (`/(auth)/`), recipe detail (`/recipes/[id]`), create recipe (`/recipes/new`)
-- **Components**: `ui/` (shadcn primitives), `layout/Navbar.tsx`, `recipe/RecipeCard.tsx`
-- **Auth flow**: `AuthContext.tsx` manages user state; tokens stored in localStorage via `lib/auth.ts`
-- **Path alias**: `@/*` maps to `src/*` in imports
+- **Pages**: 홈(`/`), 로그인/회원가입(`/(auth)/`), 레시피 상세(`/recipes/[id]`), 레시피 작성(`/recipes/new`)
+- **Components**: `ui/`(shadcn 기본 컴포넌트), `layout/Navbar.tsx`, `recipe/RecipeCard.tsx`
+- **인증 흐름**: `AuthContext.tsx`가 사용자 상태 관리; `lib/auth.ts`를 통해 토큰을 localStorage에 저장
+- **경로 별칭**: `@/*`는 임포트에서 `src/*`로 매핑
 
-### Data flow
-Frontend form → `lib/api.ts` (adds Bearer token) → Express middleware (JWT verify) → controller (validate + DB ops) → JSON response → frontend state update.
+### 데이터 흐름
+프론트엔드 폼 → `lib/api.ts`(Bearer 토큰 추가) → Express 미들웨어(JWT 검증) → 컨트롤러(유효성 검사 + DB 작업) → JSON 응답 → 프론트엔드 상태 업데이트.
 
-## Database
-SQLite via better-sqlite3. Schema lives in `backend/src/db/schema.sql`. Key relationships:
+## 데이터베이스
+better-sqlite3를 통한 SQLite. 스키마는 `backend/src/db/schema.sql`에 위치. 주요 관계:
 - recipes.author_id → users.id
-- ingredients and steps CASCADE on recipe delete
-- likes and recipe_tags use composite primary keys
-- comments table exists in schema but has no API endpoints yet
+- ingredients와 steps는 레시피 삭제 시 CASCADE
+- likes와 recipe_tags는 복합 기본키 사용
+- comments 테이블은 스키마에 존재하나 API 엔드포인트 미구현
 
-## Known issues (from RISK_ANALYSIS.md)
-- JWT secret has an unsafe hardcoded default in `authController.ts`
-- Recipe update (`PUT /api/recipes/:id`) does not update ingredients, steps, or tags
-- No test infrastructure exists yet
-- No rate limiting on auth endpoints
-- Image upload lacks MIME validation beyond extension check
+## 알려진 문제점 (RISK_ANALYSIS.md 참고)
+- `authController.ts`에 안전하지 않은 JWT 시크릿 하드코딩 기본값 존재
+- 레시피 수정(`PUT /api/recipes/:id`) 시 ingredients, steps, tags가 업데이트되지 않음
+- 테스트 인프라 미구축
+- 인증 엔드포인트에 요청 속도 제한(rate limiting) 없음
+- 이미지 업로드 시 확장자 검사 외 MIME 타입 유효성 검증 부재
